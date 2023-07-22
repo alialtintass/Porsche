@@ -1,0 +1,177 @@
+import os
+import locale
+import copy
+from urllib.request import urlopen
+import json
+from math import sqrt
+import pandas as pd
+import numpy as np
+import dateparser
+import sklearn
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+import plotly.express as px
+from dash import Dash, dcc, Output, Input, html
+import dash_bootstrap_components as dbc
+from selenium import webdriver
+from time import sleep
+from bs4 import BeautifulSoup
+from scrapy import selector
+import requests
+import pandas as pd
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium import webdriver
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
+from selenium.webdriver.firefox.options import Options
+from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.common.exceptions import NoSuchElementException
+import time
+import sys
+import numpy as np
+
+#Harita
+with urlopen('https://raw.githubusercontent.com/cihadturhan/tr-geojson/master/geo/tr-cities-utf8.json') as response:
+    harita = json.load(response)
+# Github'ta tutulan güncel scrape edilmiş veriyi içerir. Github'ta tutulmasının amacı scrape edilen güncel haftaları github'ta bu dosyaya pushlayarak, dosyanın güncel ve erişilebilir kalmasını sağlamak.
+df_old=pd.read_csv("https://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@raw.githubusercontent.com/alialtintass/Porsche/main/Porsche_old.csv", delimiter=",")
+
+pd.set_option('display.max_columns', None)
+options = Options()
+options.add_argument("--headless")
+options.binary = FirefoxBinary(r'C:/Program Files/Mozilla Firefox/firefox.exe')
+options.set_preference("browser.download.folderList",2)
+options.set_preference("browser.download.manager.showWhenStarting", False)
+options.set_preference("browser.download.dir","/Data")
+options.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/octet-stream,application/vnd.ms-excel") 
+driver = webdriver.Firefox(executable_path=r'C:/webdriver/geckodriver.exe', options=options)
+driver.get("https://www.sahibinden.com/porsche?pagingSize=50&sorting=date_desc")
+driver.switch_to.window(driver.current_window_handle)
+sleep(2)
+#çerezleri kabul etme
+driver.find_element("xpath",'//*[@id="onetrust-accept-btn-handler"]').click()
+sleep(2)
+#aramayı kaydet
+# driver.find_element("xpath",'/html/body/div[12]/div[3]').click()
+# sleep(2)
+#tablo oluşumu
+item_seri  = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[2]')
+item_model = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[3]')
+item_title = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[4]')
+item_year = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[5]')
+item_km = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[6]')
+item_color = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[7]')
+item_prices = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[8]')
+item_date = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[9]')
+item_loc = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[10]')
+#boş liste
+seri_list=[]
+model_list = []
+titles_list = []
+km_list =[]
+color_list =[]
+prices_list= []
+date_list = []
+loca_list = []
+year_list =[]
+# Loop over the item_titles and item_prices
+for seri in item_seri:
+    seri_list.append(seri.text)
+for model in item_model:
+    model_list.append(model.text)
+for title in item_title:
+    titles_list.append(title.text)
+for year in item_year:
+    year_list.append(year.text)
+for km in item_km:
+    km_list.append(km.text)
+for color in item_color:
+    color_list.append(color.text)
+for prices in item_prices:
+    prices_list.append(prices.text)
+for dat in item_date:
+    date_list.append(dat.text)
+for locat in item_loc:
+    loca_list.append(locat.text) 
+df = pd.DataFrame(
+    {'seri': seri_list,
+    'model': model_list,
+    'titles': titles_list,
+     'year': year_list,
+     'km' : km_list,
+     'color': color_list,
+     'prices': prices_list,
+     'date': date_list,
+     'location': loca_list
+    })
+while True:
+    next_page_btn = driver.find_elements(by=By.LINK_TEXT, value="Sonraki")    
+    try:
+        next_page_btn[0].click()
+        time.sleep(10)
+        item_seri_new =  driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[2]')
+        item_model_new = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[3]')
+        item_title_new = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[4]')
+        item_year_new =  driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[5]')
+        item_km_new = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[6]')
+        item_color_new = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[7]')
+        item_prices_new = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[8]')
+        item_date_new = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[9]')
+        item_loc_new = driver.find_elements("xpath",'//*[@id="searchResultsTable"]/tbody/tr[*]/td[10]')
+        #boş liste
+        seri_list_new= []
+        model_list_new = []
+        titles_list_new = []
+        km_list_new =[]
+        color_list_new =[]
+        prices_list_new= []
+        date_list_new = []
+        loca_list_new = []
+        year_list_new =[]
+# Loop over the item_titles and item_prices
+        for seri in item_seri_new:
+            seri_list_new.append(seri.text)
+        for model in item_model_new:
+            model_list_new.append(model.text)
+        for title in item_title_new:
+            titles_list_new.append(title.text)
+        for year in item_year_new:
+            year_list_new.append(year.text)
+        for km in item_km_new:
+            km_list_new.append(km.text)
+        for color in item_color_new:
+            color_list_new.append(color.text)
+        for prices in item_prices_new:
+            prices_list_new.append(prices.text)
+        for dat in item_date_new:
+            date_list_new.append(dat.text)
+        for locat in item_loc_new:
+            loca_list_new.append(locat.text) 
+        df_new = pd.DataFrame(
+            {'seri': seri_list_new,
+            'model': model_list_new,
+            'titles': titles_list_new,
+            'year': year_list_new,
+            'km' : km_list_new,
+            'color': color_list_new,
+            'prices': prices_list_new,
+            'date': date_list_new,
+            'location': loca_list_new
+            })
+        df=df.append(df_new.copy(deep=True),ignore_index=True)
+        len(df)
+        len(df_new)
+    except IndexError:
+        print("Last page reached")
+        df.dropna(how='any',inplace=True)
+        df.to_excel("Porsche_21022023.xlsx",index=False)
+        break
+df1=df.copy()
+df=df1
+len(df)
+# Bu arada ekleme yapıpı güncel df oluşturuyoruz. Bu df'i tekrar github'a aynı dosyanın üzerine update komutu ile pushlayacağız.
+df = df.append(df_old)
+
+
