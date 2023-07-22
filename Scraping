@@ -35,7 +35,7 @@ import numpy as np
 #Harita
 with urlopen('https://raw.githubusercontent.com/cihadturhan/tr-geojson/master/geo/tr-cities-utf8.json') as response:
     harita = json.load(response)
-# Github'ta tutulan güncel scrape edilmiş veriyi içerir. Github'ta tutulmasının amacı scrape edilen güncel haftaları github'ta bu dosyaya pushlayarak, dosyanın güncel ve erişilebilir kalmasını sağlamak.
+# This contains the up-to-date scraped data on Github. The purpose of keeping it on Github is to push the scraped data for current weeks into this file, ensuring that the file remains up-to-date and accessible on Github.
 df_old=pd.read_csv("https://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@raw.githubusercontent.com/alialtintass/Porsche/main/Porsche_old.csv", delimiter=",")
 
 pd.set_option('display.max_columns', None)
@@ -171,7 +171,7 @@ while True:
 df1=df.copy()
 df=df1
 len(df)
-# Bu arada ekleme yapıpı güncel df oluşturuyoruz. Bu df'i tekrar github'a aynı dosyanın üzerine update komutu ile pushlayacağız.
+# In this last line, we are making additions to create an updated dataframe. We will push this dataframe back to Github over the same file using the update command.
 df = df.append(df_old)
 
 
