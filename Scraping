@@ -174,4 +174,41 @@ len(df)
 # In this last line, we are making additions to create an updated dataframe. We will push this dataframe back to Github over the same file using the update command.
 df = df.append(df_old)
 
+##################################################################################################
+#In this section, Updated df is pushed to Github Porsche_old repository which keeps Porsche advertisements' data.
+import github
+from github import Github
+from github import InputGitTreeElement
+from datetime import datetime
+
+file_list = [df]
+file_names = ['Porsche_old.csv']
+#Specify commit message
+commit_message = 'Test Python'
+
+#Create connection with GiHub
+g = Github("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")
+
+repo = g.get_user().get_repo('Porsche')
+all_files = []
+contents = repo.get_contents("")
+while contents:
+    file_content = contents.pop(0)
+    if file_content.type == "dir":
+        contents.extend(repo.get_contents(file_content.path))
+    else:
+        file = file_content
+        all_files.append(str(file).replace('ContentFile(path="','').replace('")',''))
+list(df.columns)
+df =df[['']]
+df.to_csv("hede.csv", index=False)
+with open('hede.csv', 'r', encoding="utf8") as file:
+    content = file.read()
+
+# Upload to github
+git_prefix = 'Porsche/'
+git_file = 'Porsche_old.csv'
+### THIS PART WORKS ###
+contents = repo.get_contents(git_file)
+repo.update_file(contents.path, "committing files",content , contents.sha, branch="main")
 
