@@ -175,14 +175,11 @@ len(df)
 df = df.append(df_old)
 
 ##################################################################################################
-#In this section, Updated df is pushed to Github Porsche_old repository which keeps Porsche advertisements' data.
-import github
-from github import Github
-from github import InputGitTreeElement
-from datetime import datetime
+#In this section, Updated df is pushed to Github df_csv repository which keeps Porsche advertisements' data.
 
+df=df.drop(['seri,model,titles,year,km,color,prices,date,location,"seri,model,titles,year,km,color,prices,date,location"'], axis=1)
 file_list = [df]
-file_names = ['Porsche_old.csv']
+file_names = ['df.csv']
 #Specify commit message
 commit_message = 'Test Python'
 
@@ -201,14 +198,15 @@ while contents:
         all_files.append(str(file).replace('ContentFile(path="','').replace('")',''))
 list(df.columns)
 df =df[['']]
-df.to_csv("hede.csv", index=False)
-with open('hede.csv', 'r', encoding="utf8") as file:
+df.to_csv("dfsahi.csv", index=False)
+with open('dfsahi.csv', 'r', encoding="utf8") as file:
     content = file.read()
 
 # Upload to github
 git_prefix = 'Porsche/'
-git_file = 'Porsche_old.csv'
+git_file = 'df.csv'
 ### THIS PART WORKS ###
 contents = repo.get_contents(git_file)
-repo.update_file(contents.path, "committing files",content , contents.sha, branch="main")
 
+repo.create_file("df.csv", "commit message",content)
+repo.update_file(contents.path, "committing files",content , contents.sha, branch="main")
