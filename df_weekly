@@ -1,0 +1,57 @@
+x_columns = list(X.columns)
+unique_colors=list()
+unique_years=list()
+unique_models=list()
+unique_seri=list()
+for item in x_columns:
+if item[:5]=='color':
+unique_colors.append(item[6:])
+if item[:4]=='year':
+unique_years.append(int(item[5:]))
+if item[:5]=='model':
+unique_models.append(item[6:])
+if item[:4]=='seri':
+unique_seri.append(item[5:])
+unique_years.append(2022)
+unique_colors.append('Bej')
+unique_models.append('Taycan')
+unique_seri.append('Taycan')
+data_colors=list(df.color.unique())
+data_years=list(df.year.unique()).sort()
+data_series=list(df.seri.unique())
+df_trial=copy.deepcopy(df)
+df_trial['date'] = pd.to_datetime(df_trial['date'], dayfirst=True)
+series_weekly=df_trial.groupby([pd.Grouper(key='date', freq='W-MON')])['prices'].mean()
+df_weekly=pd.DataFrame(data=series_weekly, columns=['prices'])
+df_weekly.reset_index(inplace=True)
+
+  #df_weekly push 
+
+  file_list = [df_trial]
+file_names = ['df_trial.csv']
+#Specify commit message
+commit_message = 'Test Weekly'
+
+#Create connection with GiHub
+g = Github("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")
+
+repo = g.get_user().get_repo('Porsche')
+all_files = []
+contents = repo.get_contents("")
+while contents:
+    file_content = contents.pop(0)
+    if file_content.type == "dir":
+        contents.extend(repo.get_contents(file_content.path))
+    else:
+        file = file_content
+        all_files.append(str(file).replace('ContentFile(path="','').replace('")',''))
+df_trial =df_trial[['']]
+df_trial.to_csv("df_trial.csv", index=False)
+with open('df_trial.csv', 'r', encoding="utf8") as file:
+    content = file.read()
+# Upload to github
+git_prefix = 'Porsche/'
+git_file = 'df_trial.csv'
+### THIS PART WORKS ###
+contents = repo.get_contents(git_file)
+repo.update_file(contents.path, "committing files",content , contents.sha, branch="main")
