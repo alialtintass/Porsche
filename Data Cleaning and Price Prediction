@@ -20,13 +20,18 @@ df['km']=df['km'].astype(int)
 df['year']=df['year'].astype(int)
 choices = list()
 conditions = list()
+
+#Map
 for item in harita['features']:
     conditions.append((df["Il"]==item['properties']['name']))
     choices.append(int(item['id']))
 
+#Creating New Column (Km/Median)
 df['prices'] = df['prices'].apply(pd.to_numeric, downcast='float', errors='coerce')
 df['km_median'] =  df['km'].groupby(df['year']).transform('median')
 df['km / median']= df.km/df['km_median']
+
+
 df.drop('index', axis=1, inplace=True)
 df.isnull().sum()
 X = copy.deepcopy(df[['year', 'km', 'color', 'model', 'seri', 'km / median']])
