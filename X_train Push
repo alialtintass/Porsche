@@ -1,0 +1,31 @@
+X_train file is pushed by the code part shown in below:
+
+file_list = [X_train]
+file_names = ['X_train.csv']
+#Specify commit message
+commit_message = 'X_train'
+
+#Create connection with GiHub
+g = Github("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")
+
+repo = g.get_user().get_repo('Porsche')
+all_files = []
+contents = repo.get_contents("")
+while contents:
+    file_content = contents.pop(0)
+    if file_content.type == "dir":
+        contents.extend(repo.get_contents(file_content.path))
+    else:
+        file = file_content
+        all_files.append(str(file).replace('ContentFile(path="','').replace('")',''))
+X_train =X_train[['']]
+X_train.to_csv("X_train.csv", index=False,encoding="utf8")
+with open('X_train.csv', 'r', encoding="utf8") as file:
+    content = file.read()
+# Upload to github
+git_prefix = 'Porsche/'
+git_file = 'X_train.csv'
+contents = repo.get_contents(git_file)
+repo.update_file(contents.path, "committing files",content , contents.sha, branch="main")
+
+
