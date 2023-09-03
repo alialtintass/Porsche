@@ -1,0 +1,17 @@
+#'my_regressor.cbm' file is split into 20 equal size chunk:
+
+model.save_model('my_regressor.cbm')
+model=model.load_model('my_regressor.cbm')
+filename = 'my_regressor.cbm'
+num_chunks = 20
+with open(filename, 'rb') as f:
+    file_size = os.path.getsize(filename)
+    chunk_size = file_size // num_chunks
+    for i in range(num_chunks):
+        if i == num_chunks - 1:
+            # last chunk may be larger than the others
+            chunk_size = file_size - chunk_size * i
+        chunk_filename = f"{os.path.splitext(filename)[0]}_part{i}.cbm"
+        with open(chunk_filename, 'wb') as chunk_file:
+            chunk = f.read(chunk_size)
+            chunk_file.write(chunk)
