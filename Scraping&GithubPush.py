@@ -227,7 +227,6 @@ git_file = 'Porsche_old.csv'
 contents = repo.get_contents(git_file)
 repo.update_file(contents.path, "committing files",content , contents.sha, branch="main")
 ####################################################################################################################
-
 df=df.drop_duplicates()
 df = df.reset_index()
 df['color'].replace('',np.nan,inplace=True)
@@ -235,7 +234,6 @@ df.dropna(subset=['color'], inplace=True)
 df.reset_index(drop=True,inplace=True)
 df[["Il", "Ilce"]] = df["location"].str.split(" ").apply(pd.Series)
 df = df.drop('location', axis=1)
-
 df['date'] = pd.to_datetime(df['date'],dayfirst=True, format='%d%B%Y')
 df['date'] =  df['date'].dt.strftime('%d/%m/%Y')
 df.date.head(5)
@@ -249,15 +247,15 @@ df.km = df.km.str.replace('.', '')
 df.km = df.km.str.replace(',', '')
 df['km']=df['km'].astype(int)
 df['year']=df['year'].astype(int)
+df['prices'] = df['prices'].apply(pd.to_numeric, downcast='float', errors='coerce')
+
 choices = list()
 conditions = list()
 for item in harita['features']:
     conditions.append((df["Il"]==item['properties']['name']))
     choices.append(int(item['id']))
-
 df['id'] = np.select(conditions, choices, default=0)
-df.to_excel("ID_Control.xlsx")
-df['prices'] = df['prices'].apply(pd.to_numeric, downcast='float', errors='coerce')
+
 df['km_median'] =  df['km'].groupby([df['seri'], df['model'], df['year']]).transform('median')
 df['km / median']= df.km/df['km_median']
 df.drop('index', axis=1, inplace=True)
