@@ -119,15 +119,6 @@ with tempfile.NamedTemporaryFile(delete=False) as temp_file:
     model = catboost.CatBoost()
     model.load_model(temp_file.name)
 
-
-
-
-
-
-
-
-
-
 df=df.drop_duplicates()
 df = df.reset_index()
 df['color'].replace('',np.nan,inplace=True)
