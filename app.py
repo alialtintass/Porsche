@@ -1,4 +1,5 @@
-from dash import Dash, dcc, Output, Input, State  # pip install dash
+from memory_profiler import profile
+from dash import Dash, dcc, Output, Input, State, no_update  # pip install dash
 import dash_bootstrap_components as dbc
 import math
 import catboost
@@ -18,10 +19,13 @@ import requests
 import io
 import sklearn
 from sklearn.model_selection import train_test_split
+import pickle
+import joblib
 
 with urlopen('https://raw.githubusercontent.com/cihadturhan/tr-geojson/master/geo/tr-cities-utf8.json') as response:
     harita = json.load(response)
-df=pd.read_csv("https://raw.githubusercontent.com/alialtintass/Porsche/main/df.csv", delimiter=",")
+df=pd.read_csv("https://raw.githubusercontent.com/alialtintass/Porsche/main/Porsche_old.csv", delimiter=",")
+model_seri_list= pd.read_csv("https://raw.githubusercontent.com/alialtintass/Porsche/main/List.csv", delimiter=";")
 df_trial=pd.read_csv("https://raw.githubusercontent.com/alialtintass/Porsche/main/df_trial.csv", delimiter=",")
 X_train =pd.read_csv("https://raw.githubusercontent.com/alialtintass/Porsche/main/X_train.csv", delimiter=",")
 df_grouped = pd.read_csv("https://raw.githubusercontent.com/alialtintass/Porsche/main/df_grouped.csv", delimiter=",")
@@ -107,18 +111,31 @@ file19_bytes= file19.getvalue()
 file20_bytes= file20.getvalue()
 reassembled_data =file1_bytes + file2_bytes + file3_bytes + file4_bytes + file5_bytes + file6_bytes + file7_bytes + file8_bytes +  file9_bytes + file10_bytes + file11_bytes + file12_bytes + file13_bytes + file14_bytes + file15_bytes + file16_bytes +file17_bytes + file18_bytes + file19_bytes + file20_bytes
 model_file = io.BytesIO(reassembled_data)
+import tempfile
+with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+    temp_file.write(reassembled_data)
 
-with open('model.cbm', 'wb') as f:
-    f.write(model_file.getvalue())
-model = catboost.CatBoost()
-model = model.load_model('model.cbm')
+    # Load the CatBoost model from the temporary file
+    model = catboost.CatBoost()
+    model.load_model(temp_file.name)
+
+
+
+
+
+
+
+
+
 
 df=df.drop_duplicates()
 df = df.reset_index()
 df['color'].replace('',np.nan,inplace=True)
 df.dropna(subset=['color'], inplace=True)
 df.reset_index(drop=True,inplace=True)
-df['date'] = pd.to_datetime(df['date'],dayfirst=True)
+df[["Il", "Ilce"]] = df["location"].str.split(" ").apply(pd.Series)
+df = df.drop('location', axis=1)
+df['date'] = pd.to_datetime(df.date,dayfirst=True, format='%Y-%m-%d')
 df['date'] =  df['date'].dt.strftime('%d/%m/%Y')
 df['prices']=df['prices'].astype(str)
 df.prices = df.prices.str.replace(' TL', '')
@@ -126,6 +143,7 @@ df.prices = df.prices.str.replace('.', '')
 df['prices'] = pd.to_numeric(df['prices'])
 df['km']=df['km'].astype(str)
 df.km = df.km.str.replace(' TL', '')
+df.km = df.km.str.replace(',', '')
 df.km = df.km.str.replace('.', '')
 df['km']=df['km'].astype(int)
 df['year']=df['year'].astype(int)
@@ -145,10 +163,10 @@ X = copy.deepcopy(df[['year', 'km', 'color', 'model', 'seri', 'km / median']])
 y = copy.deepcopy(df[['prices']])
 X = pd.get_dummies(data=X, columns=['color', 'year', 'model', 'seri'])#, drop_first=True)
 #let us drop stuff we select in order to eliminate multicollinearity
-X.drop('year_2022', axis=1)
-X.drop('color_Bej', axis=1)
-X.drop('model_Taycan', axis=1)
-X.drop('seri_Taycan', axis=1)
+X.drop('year_2022', axis=1,inplace=True)
+X.drop('color_Bej', axis=1,inplace=True)
+X.drop('model_Taycan', axis=1,inplace=True)
+X.drop('seri_Taycan', axis=1,inplace=True)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=101)
 data = copy.deepcopy(df[['prices','year', 'km', 'color', 'model', 'seri', 'km / median']])
 
@@ -176,9 +194,13 @@ for item in x_columns:
     if item[:4]=='seri':
         unique_seri.append(item[5:])
 unique_years.append(2022)
+unique_years.sort()
 unique_colors.append('Bej')
+unique_colors.sort()
 unique_models.append('Taycan')
+unique_models.sort()
 unique_seri.append('Taycan')
+unique_seri.sort()
 
 data_colors=list(df.color.unique())
 data_years=list(df.year.unique()).sort()
@@ -188,33 +210,25 @@ df_trial['date'] = pd.to_datetime(df_trial['date'], dayfirst=True)
 series_weekly=df_trial.groupby([pd.Grouper(key='date', freq='W-MON')])['prices'].mean()
 df_weekly=pd.DataFrame(data=series_weekly, columns=['prices'])
 df_weekly.reset_index(inplace=True)
-
-
 uniq_seri_all = copy.deepcopy(unique_seri)
 uniq_seri_all.append('All Series')
+seri_categories = list(model_seri_list['seri'].unique())
+model_categories = list(model_seri_list['model'].unique())
+year_seri = pd.DataFrame(df[['year', 'seri']].drop_duplicates())
+
 
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 server = app.server
-
-mytitle = dcc.Markdown(children='# App that analyzes the price of Porsche cars on Sahibinden')
+mytitle = dcc.Markdown(children='# An Application to Analyze The Prices Of Porsche Cars On Sahibinden')
 mygraph = dcc.Graph(figure={})
-
 myhistograms = dcc.Graph(figure={})
-
 myscatterplot = dcc.Graph(figure={})
-
-hist_subsection = dcc.Markdown(children='# How are the number of cars on sale on Sahibinden in a relationship with other attributes?')
-
-
-
+hist_subsection = dcc.Markdown(children='## What is The Relationship Between The Number Of The Cars On Sahibinden And Their Other Attributes?')
 hist_dropdown = dcc.Dropdown(['Production year', 'Kilometer traveled', 'Color', 'Serie'], 
                              'Production year', id='hist-dropdown')
-
-ml_title = dcc.Markdown(children='# Predict the price of your Porsche.')
-
-
-
+ml_title = dcc.Markdown(children='## Predict the price of your Porsche.')
+slider_title = dbc.Button("Avg. prices", color="dark", className="me-1")
 myslider = dcc.Slider(min=0,
                    max=8000000,
                    step=2000000,
@@ -229,10 +243,13 @@ myslider = dcc.Slider(min=0,
 
 seri_ddown_avg_prices = dcc.Dropdown(uniq_seri_all, 'All Series', id='seri_ddown_avg_prices')
 
-model_dropdown = dcc.Dropdown(unique_models, 'Carrera', id='model_dropdown')
-seri_dropdown = dcc.Dropdown(unique_seri, 'Cayman', id='seri_dropdown')
-color_dropdown = dcc.Dropdown(unique_colors, 'Mavi', id='color_dropdown')
-year_dropdown = dcc.Dropdown(unique_years, 2022, id='year_dropdown')
+model_dropdown = dcc.Dropdown(options=[], placeholder='Select models', id='model_dropdown')
+
+seri_dropdown = dcc.Dropdown(options=[], placeholder='Select series', id='seri_dropdown')
+color_dropdown = dcc.Dropdown(unique_colors, placeholder='Select colors', id='color_dropdown')
+year_dropdown = dcc.Dropdown(id='year_dropdown',
+        placeholder='Select a year',  # Set the placeholder directly
+        value=None ) # Set the initial value to None  # Set the initial value to None)
 
 app.layout = dbc.Container([
     dbc.Row([
@@ -242,10 +259,11 @@ app.layout = dbc.Container([
         dbc.Col([mygraph], width = 12)
     ]),
     dbc.Row([
-        dbc.Col([myslider], width = 12)
+        dbc.Col([slider_title], width = 1),
+        dbc.Col([myslider], width = 11)
     ]),
     dbc.Row([
-        dbc.Col([hist_subsection], width = 12)
+        dbc.Col([hist_subsection], width = 12, align='end')
     ]),
     dbc.Row([
         dbc.Col([hist_dropdown], width = 3, align='center'),
@@ -292,7 +310,7 @@ app.layout = dbc.Container([
         dbc.Col([html.Div(children = dcc.Markdown(children = 'Prediction will be displayed here.', id= 'prediction output'))])
     ]),
     dbc.Row([
-        dbc.Col(dcc.Markdown(children='# Average of prices of Porsche cars, grouped weekly'), width = 12), #title
+        dbc.Col(dcc.Markdown(children='## Weekly Average Prices Of Porsche Cars'), width = 12), #title
     ]),
     dbc.Row([
         dbc.Col([seri_ddown_avg_prices], width=2, align='center'),
@@ -301,10 +319,45 @@ app.layout = dbc.Container([
     ])
 
 
-# @app.callback(
-#     Output(mygraph, component_property='figure'),
-#     Input(myslider, component_property='value')
-# )
+# Initialize options in the callback
+@app.callback(
+    Output('year_dropdown', 'options'),
+    [Input('year_dropdown', 'value')]
+)
+def update_options(value):
+    return [{'label': str(year), 'value': year} for year in unique_years]
+
+@app.callback(
+    Output('seri_dropdown', 'options'),
+    Input('year_dropdown', 'value'))
+
+def update_minor_dd(year_dropdown):
+  
+    major_minor = year_seri[['year', 'seri']].drop_duplicates()
+    relevant_minor_options = major_minor[major_minor['year'] == year_dropdown]['seri'].values.tolist()
+    
+    # Create and return formatted relevant options with the same label and value
+    formatted_relevant_minor_options = [{'label':x, 'value':x} for x in relevant_minor_options]
+    return formatted_relevant_minor_options
+
+
+@app.callback(
+    Output('model_dropdown', 'options'),
+    Input('seri_dropdown', 'value'))
+
+def update_minor_dd(model_dropdown):
+  
+    major_minor = model_seri_list[['seri', 'model']].drop_duplicates()
+    relevant_minor_options = major_minor[major_minor['seri'] == model_dropdown]['model'].values.tolist()
+    
+    # Create and return formatted relevant options with the same label and value
+    formatted_relevant_minor_options = [{'label':x, 'value':x} for x in relevant_minor_options]
+    return formatted_relevant_minor_options
+
+
+
+
+
 
 @app.callback([Output(mygraph, component_property='figure'),
     Output(myhistograms, component_property='figure'),
@@ -371,32 +424,33 @@ def update_graph(user_input_1, user_input_2, user_input_3, user_input_4, km_stat
         df_weekly.reset_index(inplace=True)
         figur=px.line(df_weekly, x="date", y="prices", markers=True)
         figur.update_xaxes(tickangle=45)
+    if year_state is None:
+        text= '# Please select Year, Color, Seri and Model '
+        return [fig, figure, figur, text]  # returned objects are assigned to the component property of the Output
+    else:
 
-    input_km_median=list(df['km_median'][df['year']==year_state])[0]
-    model_columns=list(X_train.columns)
-    input_x=[float(km_state), float(input_km_median)]+[0]*(len(model_columns)-2)
-    year_input = 'year_'+str(year_state)
-    color_input = 'color_'+color_state
-    model_input = 'model_'+model_state
-    seri_input = 'seri_'+seri_state
-    for j in range(len(model_columns)):
-        if year_input == model_columns[j]:
-            input_x[j]= 1
-        if color_input == model_columns[j]:
-            input_x[j]= 1
-        if model_input == model_columns[j]:
-            input_x[j]= 1
-        if seri_input == model_columns[j]:
-            input_x[j]= 1
-    df_input=pd.DataFrame(columns=model_columns)
-    df_input[-1]=input_x
-    guess= model.predict(input_x)
-    text= '# The predicted price is '+ str(round(guess, 2))+ ' TL.'
-    # text= '#The predicted price is '+ '\033[1m' +str(round(guess, 2))+ ' TL \033[0m.'
-    return [fig, figure, figur, text]  # returned objects are assigned to the component property of the Output
-
-
-
-# Run app
+        input_km_median=list(df['km_median'][df['year']==int(year_state)])[0]
+        model_columns=list(X_train.columns)
+        input_x=[float(km_state), float(input_km_median)]+[0]*(len(model_columns)-2)
+        year_input = 'year_'+str(year_state)
+        color_input = 'color_'+str(color_state)
+        model_input = 'model_'+str(model_state)
+        seri_input = 'seri_'+ str(seri_state)
+        for j in range(len(model_columns)):
+            if year_input == model_columns[j]:
+                input_x[j]= 1
+            if color_input == model_columns[j]:
+                input_x[j]= 1
+            if model_input == model_columns[j]:
+                input_x[j]= 1
+            if seri_input == model_columns[j]:
+                input_x[j]= 1
+        df_input=pd.DataFrame(columns=model_columns)
+        df_input[-1]=input_x
+        guess= model.predict(input_x)
+        text= '# The predicted price is '+ f'{round(guess,0):,.2f}'+ ' TL'
+        # text= '#The predicted price is '+ '\033[1m' +str(round(guess, 2))+ ' TL \033[0m.'
+        return [fig, figure, figur, text]  # returned objects are assigned to the component property of the Output
+    # Run app
 if __name__=='__main__':
-    app.run_server(port=8053)
+    app.run_server(port=8065)
